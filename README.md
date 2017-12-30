@@ -11,7 +11,7 @@ Simplifications for example are:
 
 - account key is not reused but regenerated every time (for each domain)
 - domain key is not reused but regenerated every time
-- certificate subject is alwas `$domain.tld` and `www.$domain.tld`
+- certificate subject is always `$domain.tld` and `www.$domain.tld`
 - supports http validation only
 - needs manual steps for putting the challenge tokens to your document root
 - needs manual steps for installing the certificate to your webserver
@@ -38,12 +38,9 @@ Known issues
 Useful links
 ------------
 
-- ACME protocol:
-
-  https://ietf-wg-acme.github.io/acme/
+- ACME protocol: https://ietf-wg-acme.github.io/acme/
 
 - Other ACME clients
-
-  https://github.com/lukas2511/dehydrated/
-  https://gethttpsforfree.com/
+  - https://github.com/lukas2511/dehydrated/
+  - https://gethttpsforfree.com/
 
