@@ -1,0 +1,343 @@
+#!/bin/bash
+
+##############################################################################
+#
+#
+# lecert
+#
+# Keep it simple shell script for requesting a certificate from the Let's
+# Encrypt CA using the ACME protocol.
+#
+# Copyright (c) 2017 Stephan Uhlmann <su@su2.info>
+# Licensed under the GPL version 3, see LICENSE.txt
+#
+#
+##############################################################################
+
+# defaults
+
+API="https://acme-v01.api.letsencrypt.org"
+CONTACT_EMAIL=""
+DEBUG="false"
+DOMAIN=""
+
+
+# stop on error
+set -e
+trap on_exit EXIT
+
+
+##############################################################################
+# functions
+##############################################################################
+
+usage()
+{
+	cat << EOF
+
+Usage: lecert [options...] <domain>
+Options:
+  -d, --debug         Additional debug output
+  -e, --email EMAIL   Your email if you want that Let's Encrypt can contact you
+  -h, --help          This help
+  -t, --test          Use staging API of Let's Encrypt for testing the script
+
+EOF
+}
+
+# general log messages
+log()
+{
+	echo "#### ${1}"
+}
+
+# debug messages
+debug()
+{
+	if [ "${DEBUG}" = "true" ];
+	then
+		# do not output to stdout, else debug output from api_request would
+		# become part of the function response
+		echo "${1}" >&2
+	fi
+}
+
+# error messages
+error()
+{
+	echo "ERROR: ${1}" >&2
+}
+
+# last command
+on_exit()
+{
+	debug "EXIT ${?}"
+	exit
+}
+
+# base64url encoding
+# https://tools.ietf.org/html/rfc4648#section-5
+# input on stdin, output on stdout
+base64url()
+{
+	base64 -w 0 | sed 's/+/-/g' | sed 's/\//_/g' | sed 's/=*$//g'
+}
+
+# hex to binary
+# input on stdin, output on stdout
+hexbin()
+{
+	xxd -p -r
+}
+
+# remove newlines and duplicate whitespace
+# input on stdin, output on stdout
+flatstring()
+{
+	tr -d '\n\r' | sed 's/[[:space:]]\+/ /g'
+}
+
+
+# make and ACME API request
+# $1 = URI
+# $2 = body
+# output on stdout
+api_request()
+{
+	URI="${1}"
+	BODY="${2}"
+
+	# get nonce by HEAD to API
+	debug "Getting nonce"
+	NONCE="$(curl --silent -g --head "${API}/directory" | grep -i "^Replay-Nonce" | sed "s/Replay-Nonce: //i" | tr -d "\r\n")"
+	debug "nonce = $NONCE"
+
+	# JSON Web Signature
+	JWS_HEADER="${JWK}"
+	JWK_NONCE="{ \"alg\": \"RS256\", \"jwk\": { \"e\": \"${JWK_E}\", \"kty\": \"RSA\",\"n\": \"${JWK_N}\" }, \"nonce\": \"${NONCE}\" }"
+	JWS_PROTECTED="$(printf "%s" "${JWK_NONCE}" | base64url)"
+	JWS_PAYLOAD="$(printf "%s" "${BODY}" | base64url)"
+	JWS_SIGNATURE="$(printf "%s" "${JWS_PROTECTED}.${JWS_PAYLOAD}" | openssl dgst -sha256 -sign "${ACCOUNT_KEY}" | base64url)"
+	JWS="{ \"header\": ${JWS_HEADER}, \"protected\": \"${JWS_PROTECTED}\", \"payload\": \"${JWS_PAYLOAD}\", \"signature\": \"${JWS_SIGNATURE}\" }"
+
+	debug "Request URI: ${URI}"
+	debug "Body: ${BODY}"
+	debug "JWS: ${JWS}"
+	# base64 encoding/decoding necessary to stay binary safe.
+	# e.g. the new-cert operation responds with a der encoded certificate.
+	CURLOUT="$(curl --silent --show-error -w "\n%{http_code}" -g -X POST -H "Content-Type: application/json" -d "${JWS}" "${URI}" | base64 -w 0 )"
+	HTTP_CODE="$(echo "${CURLOUT}" | base64 -d | tail -n 1)"
+	RESPONSE="$(echo "${CURLOUT}" | base64 -d | head -n -1)"
+	# just in case we get a 2xx status code but an error in response body (spec is not clear on that)
+	ACMEERRORCHECK="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "urn:acme:error.*$/ERROR/')"
+	if ([ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "201" ] || [ "${HTTP_CODE}" = "202" ]) && ([ "${ACMEERRORCHECK}" != "ERROR" ]);
+	then
+		debug "API request successful"
+	else
+		error "API request error"
+		error "Request URI: ${URI}"
+		error "HTTP status: ${HTTP_CODE}"
+		error "${RESPONSE}"
+		return 1
+	fi
+
+	# do not echo $RESPONSE but decode again from the base64 encoded curl output to stay binary safe
+	# otherwise null bytes (0x00) will be lost
+	echo "${CURLOUT}" | base64 -d | head -n -1
+	return 0
+}
+
+
+##############################################################################
+# main
+##############################################################################
+
+
+# arg handling
+
+if [ ${#} -lt 1 ];
+then
+	error "Missing parameter"
+	usage
+	exit
+fi
+
+while [ ${#} -gt 0 ];
+do
+	ARG="${1}"
+	case "${ARG}" in
+		-d|--debug)
+			DEBUG="true"
+			;;
+		-e|--email)
+			shift
+			CONTACT_EMAIL="${1}"
+			;;
+		-h|--help)
+			usage
+			exit
+			;;
+		-t|--test)
+			# use staging API for testing
+			log "Using staging API"
+			API="https://acme-staging.api.letsencrypt.org"
+			;;
+		*)
+			X="${ARG/-*/}"
+			if [ -z "${X}" ];
+			then
+				error "Unknown option"
+				usage
+				exit 1
+			else
+				DOMAIN="${ARG}"
+			fi
+	esac
+	# shift the option flag, option flag values (if any) are shifted in case block
+	shift
+done
+
+if [ -z "${DOMAIN}" ];
+then
+	error "Domain missing"
+	usage
+	exit
+fi
+
+
+
+log "Creating domain subdirectory ..."
+mkdir -p -- "${DOMAIN}"
+log "${DOMAIN}/ created."
+
+log "Getting URL of latest subscriber agreement ..."
+AGREEMENT="$(curl --silent --head ${API}/terms | grep '^Location: ' | sed 's/^Location: //' | flatstring)"
+log "${AGREEMENT}"
+
+
+
+# we create a new account key for each certificate request
+log "Generating account key ..."
+ACCOUNT_KEY="${DOMAIN}/account.key"
+ACCOUNT_PUB="${DOMAIN}/account.pub"
+log "Private key: ${ACCOUNT_KEY}"
+openssl genrsa 4096 > "${ACCOUNT_KEY}"
+log "Public key: ${ACCOUNT_PUB}"
+openssl rsa -in "${ACCOUNT_KEY}" -out "${ACCOUNT_PUB}" -pubout
+
+# account public key exponent
+# formatting: Exponent dec => hex => binary => base64url
+# e.g. 65537 => 0x010001 => ... => AQAB
+# printf 0.32 and cutting 00 in pairs makes sure we have even number of digits for hexbin
+JWK_E="$(openssl rsa -pubin -in "${ACCOUNT_PUB}" -text -noout | grep ^Exponent | awk '{ printf "%0.32x",$2; }' | sed 's/^\(00\)*//g' | hexbin | base64url)"
+
+# account public key modulus
+JWK_N="$(openssl rsa -pubin -in "${ACCOUNT_PUB}" -modulus -noout | sed 's/^Modulus=//' | hexbin | base64url)"
+
+# JSON Web Key
+JWK="{ \"alg\": \"RS256\", \"jwk\": { \"e\": \"${JWK_E}\", \"kty\": \"RSA\", \"n\": \"${JWK_N}\" } }"
+debug "jwk = ${JWK}"
+
+# Important: no whitespaces at all. The server computes the thumbprint from our
+# E and N values in JWK and does so with this exact JSON. The sha256 from us
+# will not match theirs if we use a different JSON formatting.
+# see example in https://tools.ietf.org/html/rfc7638
+JWK_THUMBPRINT="$(printf "%s" "{\"e\":\"${JWK_E}\",\"kty\":\"RSA\",\"n\":\"${JWK_N}\"}" | openssl dgst -sha256 -binary | base64url)"
+debug "jwk_thumbprint = ${JWK_THUMBPRINT}"
+
+
+
+log "Registering account key ..."
+if [ -n "${CONTACT_EMAIL}" ];
+then
+	REQUEST="{ \"resource\": \"new-reg\", \"contact\": [ \"mailto:${CONTACT_EMAIL}\" ], \"agreement\": \"${AGREEMENT}\" }"
+else
+	REQUEST="{ \"resource\": \"new-reg\", \"agreement\": \"${AGREEMENT}\" }"
+fi
+api_request "${API}/acme/new-reg" "${REQUEST}" > /dev/null
+log "OK"
+
+
+
+log "Generating domain private key ..."
+log "Private key: ${DOMAIN}/${DOMAIN}.key"
+openssl genrsa 4096 > "${DOMAIN}/${DOMAIN}.key"
+
+
+
+log "Requesting challenges ..."
+REQUEST="{ \"resource\": \"new-authz\", \"identifier\": { \"type\": \"dns\", \"value\": \"${DOMAIN}\" } }"
+RESPONSE=$(api_request "${API}/acme/new-authz" "${REQUEST}")
+debug "${RESPONSE}"
+CHALLENGE_URI1="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\1/')"
+CHALLENGE_TOKEN1="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\2/')"
+log "${DOMAIN}     : ${CHALLENGE_URI1}"
+REQUEST="{ \"resource\": \"new-authz\", \"identifier\": { \"type\": \"dns\", \"value\": \"www.${DOMAIN}\" } }"
+RESPONSE=$(api_request "${API}/acme/new-authz" "${REQUEST}")
+CHALLENGE_URI2="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\1/')"
+CHALLENGE_TOKEN2="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\2/')"
+log "www.${DOMAIN} : ${CHALLENGE_URI2}"
+
+
+
+log "Doing HTTP Validation ..."
+KEYAUTH1="${CHALLENGE_TOKEN1}.${JWK_THUMBPRINT}"
+KEYAUTH2="${CHALLENGE_TOKEN2}.${JWK_THUMBPRINT}"
+log "Do in your DocumentRoot:"
+echo
+echo
+echo "mkdir -p .well-known/acme-challenge"
+echo "echo '${KEYAUTH1}' > .well-known/acme-challenge/${CHALLENGE_TOKEN1}"
+echo "echo '${KEYAUTH2}' > .well-known/acme-challenge/${CHALLENGE_TOKEN2}"
+echo
+echo
+log "Press [Enter] when done."
+read -r
+
+
+
+log "Responding to challenges ..."
+log "${CHALLENGE_URI1}"
+REQUEST="{ \"resource\": \"challenge\", \"keyAuthorization\": \"${KEYAUTH1}\" }"
+api_request "${CHALLENGE_URI1}" "${REQUEST}" > /dev/null
+log "${CHALLENGE_URI2}"
+REQUEST="{ \"resource\": \"challenge\", \"keyAuthorization\": \"${KEYAUTH2}\" }"
+api_request "${CHALLENGE_URI2}" "${REQUEST}" > /dev/null
+log "OK"
+
+
+
+log "Waiting for validation ..."
+# just wait a bit until our validation files are checked by LE
+sleep 5
+log "Done"
+
+
+
+log "Creating CSR ..."
+export SUBJALTNAME="DNS:${DOMAIN},DNS:www.${DOMAIN}"
+openssl req -new -sha256 -key "${DOMAIN}/${DOMAIN}.key" -subj "/CN=${DOMAIN}" -reqexts SAN -config openssl.conf \
+ > "${DOMAIN}/${DOMAIN}.csr"
+log "OK"
+
+
+log "Requesting certificate ..."
+CSR="$(openssl req -in "${DOMAIN}/${DOMAIN}.csr" -inform PEM -outform DER | base64url)"
+REQUEST="{ \"resource\": \"new-cert\", \"csr\": \"${CSR}\" }"
+# check return status of api_request before we send the output to openssl
+# needs some base64 wrapping/unwrapping to stay binary safe (cert comes der encoded)
+CERT="$(api_request "${API}/acme/new-cert" "${REQUEST}" | base64 -w 0; exit "${PIPESTATUS[0]}";)"
+echo "${CERT}" | base64 -d | openssl x509 -inform DER -outform PEM -out "${DOMAIN}/${DOMAIN}.crt"
+log "Certificate saved: ${DOMAIN}/${DOMAIN}.crt"
+
+
+
+log "Finished!"
+
+log "You can do now:"
+echo
+echo
+echo "rm -r .well-known"
+echo
+echo
+
