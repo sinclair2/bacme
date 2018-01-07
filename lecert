@@ -8,7 +8,7 @@
 # Keep it simple shell script for requesting a certificate from the Let's
 # Encrypt CA using the ACME protocol.
 #
-# Copyright (c) 2017 Stephan Uhlmann <su@su2.info>
+# Copyright (c) 2018 Stephan Uhlmann <su@su2.info>
 # Licensed under the GPL version 3, see LICENSE.txt
 #
 #
