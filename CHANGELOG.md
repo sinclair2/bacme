@@ -1,6 +1,14 @@
+# ChangeLog
 
 ## [Unreleased]
+### Added
+- option -w/--webroot for automating the copying of token files to the
+  DocumentRoot, either locally or remote via rsync
+
 ### Changed
+- manage private key file permissions so they are ownly owner-accessible at any
+  time of their generation
+- adapted normal and debug output of script
 - use http://keepachangelog.com formatting for this CHANGELOG
 
 

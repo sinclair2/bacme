@@ -20,7 +20,7 @@ API="https://acme-v01.api.letsencrypt.org"
 CONTACT_EMAIL=""
 DEBUG="false"
 DOMAIN=""
-
+WEBROOT=""
 
 # stop on error
 set -e
@@ -37,10 +37,12 @@ usage()
 
 Usage: lecert [options...] <domain>
 Options:
-  -d, --debug         Additional debug output
-  -e, --email EMAIL   Your email if you want that Let's Encrypt can contact you
-  -h, --help          This help
-  -t, --test          Use staging API of Let's Encrypt for testing the script
+  -d, --debug               Additional debug output
+  -e, --email EMAIL         Your email if you want that Let's Encrypt can contact you
+  -h, --help                This help
+  -t, --test                Use staging API of Let's Encrypt for testing the script
+  -w, --webroot DIRECTORY   Path to the DocumentRoot of your webserver. Can be a rsync
+                            compatible remote location like www@myserver:/srv/www/htdocs/.
 
 EOF
 }
@@ -109,7 +111,7 @@ api_request()
 
 	# get nonce by HEAD to API
 	debug "Getting nonce"
-	NONCE="$(curl --silent -g --head "${API}/directory" | grep -i "^Replay-Nonce" | sed "s/Replay-Nonce: //i" | tr -d "\r\n")"
+	NONCE="$(curl --silent -g --head "${API}/directory" | grep -i "^Replay-Nonce" | sed "s/Replay-Nonce: //i" | tr -d "\\r\\n")"
 	debug "nonce = $NONCE"
 
 	# JSON Web Signature
@@ -125,7 +127,7 @@ api_request()
 	debug "JWS: ${JWS}"
 	# base64 encoding/decoding necessary to stay binary safe.
 	# e.g. the new-cert operation responds with a der encoded certificate.
-	CURLOUT="$(curl --silent --show-error -w "\n%{http_code}" -g -X POST -H "Content-Type: application/json" -d "${JWS}" "${URI}" | base64 -w 0 )"
+	CURLOUT="$(curl --silent --show-error -w "\\n%{http_code}" -g -X POST -H "Content-Type: application/json" -d "${JWS}" "${URI}" | base64 -w 0 )"
 	HTTP_CODE="$(echo "${CURLOUT}" | base64 -d | tail -n 1)"
 	RESPONSE="$(echo "${CURLOUT}" | base64 -d | head -n -1)"
 	# just in case we get a 2xx status code but an error in response body (spec is not clear on that)
@@ -182,6 +184,10 @@ do
 			log "Using staging API"
 			API="https://acme-staging.api.letsencrypt.org"
 			;;
+		-w|--webroot)
+			shift
+			WEBROOT="${1}"
+			;;
 		*)
 			X="${ARG/-*/}"
 			if [ -z "${X}" ];
@@ -221,7 +227,10 @@ log "Generating account key ..."
 ACCOUNT_KEY="${DOMAIN}/account.key"
 ACCOUNT_PUB="${DOMAIN}/account.pub"
 log "Private key: ${ACCOUNT_KEY}"
+touch "${ACCOUNT_KEY}"
+chmod 600 "${ACCOUNT_KEY}"
 openssl genrsa 4096 > "${ACCOUNT_KEY}"
+chmod 400 "${ACCOUNT_KEY}"
 log "Public key: ${ACCOUNT_PUB}"
 openssl rsa -in "${ACCOUNT_KEY}" -out "${ACCOUNT_PUB}" -pubout
 
@@ -261,7 +270,10 @@ log "OK"
 
 log "Generating domain private key ..."
 log "Private key: ${DOMAIN}/${DOMAIN}.key"
+touch "${DOMAIN}/${DOMAIN}.key"
+chmod 600 "${DOMAIN}/${DOMAIN}.key"
 openssl genrsa 4096 > "${DOMAIN}/${DOMAIN}.key"
+chmod 400 "${DOMAIN}/${DOMAIN}.key"
 
 
 
@@ -271,36 +283,48 @@ RESPONSE=$(api_request "${API}/acme/new-authz" "${REQUEST}")
 debug "${RESPONSE}"
 CHALLENGE_URI1="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\1/')"
 CHALLENGE_TOKEN1="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\2/')"
-log "${DOMAIN}     : ${CHALLENGE_URI1}"
+KEYAUTH1="${CHALLENGE_TOKEN1}.${JWK_THUMBPRINT}"
+debug "${DOMAIN}     : challenge_uri=${CHALLENGE_URI1} keyauth=${KEYAUTH1}"
 REQUEST="{ \"resource\": \"new-authz\", \"identifier\": { \"type\": \"dns\", \"value\": \"www.${DOMAIN}\" } }"
 RESPONSE=$(api_request "${API}/acme/new-authz" "${REQUEST}")
 CHALLENGE_URI2="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\1/')"
 CHALLENGE_TOKEN2="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\2/')"
-log "www.${DOMAIN} : ${CHALLENGE_URI2}"
-
-
-
-log "Doing HTTP Validation ..."
-KEYAUTH1="${CHALLENGE_TOKEN1}.${JWK_THUMBPRINT}"
 KEYAUTH2="${CHALLENGE_TOKEN2}.${JWK_THUMBPRINT}"
-log "Do in your DocumentRoot:"
-echo
-echo
-echo "mkdir -p .well-known/acme-challenge"
-echo "echo '${KEYAUTH1}' > .well-known/acme-challenge/${CHALLENGE_TOKEN1}"
-echo "echo '${KEYAUTH2}' > .well-known/acme-challenge/${CHALLENGE_TOKEN2}"
-echo
-echo
-log "Press [Enter] when done."
-read -r
+debug "www.${DOMAIN} : challenge_uri=${CHALLENGE_URI2} keyauth=${KEYAUTH2}"
+log OK
 
+log "Doing HTTP validation ..."
+
+if [ -n "${WEBROOT}" ];
+then
+	log "Copying challenge tokens to DocumentRoot ${WEBROOT} ..."
+    (
+	cd "${DOMAIN}"
+	rm -rf ".well-known"
+	mkdir -p ".well-known/acme-challenge"
+	echo "${KEYAUTH1}" > ".well-known/acme-challenge/${CHALLENGE_TOKEN1}"
+	echo "${KEYAUTH2}" > ".well-known/acme-challenge/${CHALLENGE_TOKEN2}"
+	rsync -axR ".well-known/" "${WEBROOT}"
+	)
+else
+	log "Do in your DocumentRoot:"
+	echo
+	echo
+	echo "mkdir -p .well-known/acme-challenge"
+	echo "echo '${KEYAUTH1}' > .well-known/acme-challenge/${CHALLENGE_TOKEN1}"
+	echo "echo '${KEYAUTH2}' > .well-known/acme-challenge/${CHALLENGE_TOKEN2}"
+	echo
+	echo
+	log "Press [Enter] when done."
+	read -r
+fi
 
 
 log "Responding to challenges ..."
-log "${CHALLENGE_URI1}"
+debug "${CHALLENGE_URI1}"
 REQUEST="{ \"resource\": \"challenge\", \"keyAuthorization\": \"${KEYAUTH1}\" }"
 api_request "${CHALLENGE_URI1}" "${REQUEST}" > /dev/null
-log "${CHALLENGE_URI2}"
+debug "${CHALLENGE_URI2}"
 REQUEST="{ \"resource\": \"challenge\", \"keyAuthorization\": \"${KEYAUTH2}\" }"
 api_request "${CHALLENGE_URI2}" "${REQUEST}" > /dev/null
 log "OK"
@@ -318,7 +342,7 @@ log "Creating CSR ..."
 export SUBJALTNAME="DNS:${DOMAIN},DNS:www.${DOMAIN}"
 openssl req -new -sha256 -key "${DOMAIN}/${DOMAIN}.key" -subj "/CN=${DOMAIN}" -reqexts SAN -config openssl.conf \
  > "${DOMAIN}/${DOMAIN}.csr"
-log "OK"
+log "OK ${DOMAIN}/${DOMAIN}.csr"
 
 
 log "Requesting certificate ..."
@@ -328,16 +352,27 @@ REQUEST="{ \"resource\": \"new-cert\", \"csr\": \"${CSR}\" }"
 # needs some base64 wrapping/unwrapping to stay binary safe (cert comes der encoded)
 CERT="$(api_request "${API}/acme/new-cert" "${REQUEST}" | base64 -w 0; exit "${PIPESTATUS[0]}";)"
 echo "${CERT}" | base64 -d | openssl x509 -inform DER -outform PEM -out "${DOMAIN}/${DOMAIN}.crt"
-log "Certificate saved: ${DOMAIN}/${DOMAIN}.crt"
+log "Success! Certificate saved: ${DOMAIN}/${DOMAIN}.crt"
 
 
+
+if [ -n "${WEBROOT}" ];
+then
+	log "Deleting challenge tokens in DocumentRoot ${WEBROOT} ..."
+	(
+	cd "${DOMAIN}" || exit
+	rm ".well-known/acme-challenge/${CHALLENGE_TOKEN1}"
+	rm ".well-known/acme-challenge/${CHALLENGE_TOKEN2}"
+	rsync -axR --delete --include ".well-known/acme-challenge/${CHALLENGE_TOKEN1}" --include ".well-known/acme-challenge/${CHALLENGE_TOKEN2}" --exclude '.well-known/acme-challenge/*' ".well-known/" "${WEBROOT}"
+	)
+else
+	log "You can do now in your DocumentRoot:"
+	echo
+	echo
+	echo "rm -r .well-known"
+	echo
+	echo
+fi
 
 log "Finished!"
-
-log "You can do now:"
-echo
-echo
-echo "rm -r .well-known"
-echo
-echo
 

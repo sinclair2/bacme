@@ -9,17 +9,24 @@ Let's Encrypt CA using the ACME protocol.
 
 Simplifications for example are:
 
-- account key is not reused but regenerated every time (for each domain)
-- domain key is not reused but regenerated every time
 - certificate subject is always `$domain.tld` and `www.$domain.tld`
 - supports http validation only
-- needs manual steps for putting the challenge tokens to your document root
-- needs manual steps for installing the certificate to your webserver
+- keys are not reused but regenerated every time
+  - both the account key and the domain key
+  - in part this is also because of privacy considerations
+
+The script is intentionally made so by default it will not do anything on your
+server by itself. There is no need that you have to run it directly on your
+server (as root or otherwise). You keep control over the authorization and
+installation process.
+A typical automated renewal process would be to let the script generate new
+private keys, automate the http validation by using a SSH key authenticated
+rsync with the --webroot option and installing the generated keys and
+certificates via e.g. an Ansible playbook.
 
 The script is intended to be easy to understand but still allow the complete
-semi-automatic generation of certificates. If you want something different it
-should be easy to identify the relevant part in the code and adjust it to your
-needs. It is also a working axample to learn the ACME protocol from.
+automatic generation of certificates.
+It is also a working small example to learn the ACME protocol.
 
 
 Let's Encrypt Subscriber Agreement
@@ -39,8 +46,5 @@ Useful links
 ------------
 
 - ACME protocol: https://ietf-wg-acme.github.io/acme/
-
-- Other ACME clients
-  - https://github.com/lukas2511/dehydrated/
-  - https://gethttpsforfree.com/
+- Other ACME clients: https://letsencrypt.org/docs/client-options/
 
