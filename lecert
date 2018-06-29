@@ -340,7 +340,7 @@ log "Done"
 
 log "Creating CSR ..."
 export SUBJALTNAME="DNS:${DOMAIN},DNS:www.${DOMAIN}"
-openssl req -new -sha256 -key "${DOMAIN}/${DOMAIN}.key" -subj "/CN=${DOMAIN}" -reqexts SAN -config openssl.conf \
+openssl req -new -sha256 -key "${DOMAIN}/${DOMAIN}.key" -subj "/CN=${DOMAIN}" -reqexts SAN -config $(dirname "${0}")/openssl.conf \
  > "${DOMAIN}/${DOMAIN}.csr"
 log "OK ${DOMAIN}/${DOMAIN}.csr"
 
