@@ -6,6 +6,7 @@
   DocumentRoot, either locally or remote via rsync
 
 ### Changed
+- Load openssl.conf relative to script path (#2)
 - manage private key file permissions so they are ownly owner-accessible at any
   time of their generation
 - adapted normal and debug output of script
