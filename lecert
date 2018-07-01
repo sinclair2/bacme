@@ -282,9 +282,9 @@ chmod 400 "${DOMAIN}/${DOMAIN}.key"
 
 
 log "Requesting challenges ..."
-declare -a CHALLENGE_URIS
-declare -a CHALLENGE_TOKENS
-declare -a KEYAUTHS
+CHALLENGE_URIS=()
+CHALLENGE_TOKENS=()
+KEYAUTHS=()
 for (( i=0; i < ${#DOMAINS[@]}; i++ ))
 do
 	REQUEST="{ \"resource\": \"new-authz\", \"identifier\": { \"type\": \"dns\", \"value\": \"${DOMAINS[$i]}\" } }"
