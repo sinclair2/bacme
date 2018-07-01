@@ -9,7 +9,6 @@ Let's Encrypt CA using the ACME protocol.
 
 Simplifications for example are:
 
-- certificate subject is always `$domain.tld` and `www.$domain.tld`
 - supports http validation only
 - keys are not reused but regenerated every time
   - both the account key and the domain key
