@@ -303,7 +303,7 @@ log "Doing HTTP validation ..."
 if [ -n "${WEBROOT}" ];
 then
 	log "Copying challenge tokens to DocumentRoot ${WEBROOT} ..."
-    (
+	(
 	cd "${DOMAIN}"
 	rm -rf ".well-known"
 	mkdir -p ".well-known/acme-challenge"
