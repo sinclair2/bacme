@@ -18,8 +18,8 @@
 
 API="https://acme-v01.api.letsencrypt.org"
 CONTACT_EMAIL=""
-DEBUG="false"
-DOMAIN=""
+VERBOSE="false"
+DOMAINS=()
 WEBROOT=""
 
 # stop on error
@@ -35,14 +35,18 @@ usage()
 {
 	cat << EOF
 
-Usage: lecert [options...] <domain>
+Usage: lecert [options...] <domain> [ <domain> ... ]
 Options:
-  -d, --debug               Additional debug output
   -e, --email EMAIL         Your email if you want that Let's Encrypt can contact you
   -h, --help                This help
   -t, --test                Use staging API of Let's Encrypt for testing the script
+  -v, --verbose             Verbose mode, print additional debug output
   -w, --webroot DIRECTORY   Path to the DocumentRoot of your webserver. Can be a rsync
                             compatible remote location like www@myserver:/srv/www/htdocs/.
+
+The first domain parameter should be your main domain name with the subdomains following after it.
+
+Example: $0 -e me@example.com -w root@server:/var/www/example/ example.com www.example.com
 
 EOF
 }
@@ -56,7 +60,7 @@ log()
 # debug messages
 debug()
 {
-	if [ "${DEBUG}" = "true" ];
+	if [ "${VERBOSE}" = "true" ];
 	then
 		# do not output to stdout, else debug output from api_request would
 		# become part of the function response
@@ -168,9 +172,6 @@ while [ ${#} -gt 0 ];
 do
 	ARG="${1}"
 	case "${ARG}" in
-		-d|--debug)
-			DEBUG="true"
-			;;
 		-e|--email)
 			shift
 			CONTACT_EMAIL="${1}"
@@ -184,6 +185,9 @@ do
 			log "Using staging API"
 			API="https://acme-staging.api.letsencrypt.org"
 			;;
+		-v|--verbose)
+			VERBOSE="true"
+			;;
 		-w|--webroot)
 			shift
 			WEBROOT="${1}"
@@ -196,21 +200,21 @@ do
 				usage
 				exit 1
 			else
-				DOMAIN="${ARG}"
+				DOMAINS[${#DOMAINS[@]}]="${ARG}"
 			fi
 	esac
 	# shift the option flag, option flag values (if any) are shifted in case block
 	shift
 done
 
-if [ -z "${DOMAIN}" ];
+if [ ${#DOMAINS[@]} -eq 0 ];
 then
 	error "Domain missing"
 	usage
 	exit
 fi
 
-
+DOMAIN="${DOMAINS[0]}"
 
 log "Creating domain subdirectory ..."
 mkdir -p -- "${DOMAIN}"
@@ -278,23 +282,24 @@ chmod 400 "${DOMAIN}/${DOMAIN}.key"
 
 
 log "Requesting challenges ..."
-REQUEST="{ \"resource\": \"new-authz\", \"identifier\": { \"type\": \"dns\", \"value\": \"${DOMAIN}\" } }"
-RESPONSE=$(api_request "${API}/acme/new-authz" "${REQUEST}")
-debug "${RESPONSE}"
-CHALLENGE_URI1="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\1/')"
-CHALLENGE_TOKEN1="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\2/')"
-KEYAUTH1="${CHALLENGE_TOKEN1}.${JWK_THUMBPRINT}"
-debug "${DOMAIN}     : challenge_uri=${CHALLENGE_URI1} keyauth=${KEYAUTH1}"
-REQUEST="{ \"resource\": \"new-authz\", \"identifier\": { \"type\": \"dns\", \"value\": \"www.${DOMAIN}\" } }"
-RESPONSE=$(api_request "${API}/acme/new-authz" "${REQUEST}")
-CHALLENGE_URI2="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\1/')"
-CHALLENGE_TOKEN2="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\2/')"
-KEYAUTH2="${CHALLENGE_TOKEN2}.${JWK_THUMBPRINT}"
-debug "www.${DOMAIN} : challenge_uri=${CHALLENGE_URI2} keyauth=${KEYAUTH2}"
-log OK
+declare -a CHALLENGE_URIS
+declare -a CHALLENGE_TOKENS
+declare -a KEYAUTHS
+for (( i=0; i < ${#DOMAINS[@]}; i++ ))
+do
+	REQUEST="{ \"resource\": \"new-authz\", \"identifier\": { \"type\": \"dns\", \"value\": \"${DOMAINS[$i]}\" } }"
+	RESPONSE=$(api_request "${API}/acme/new-authz" "${REQUEST}")
+	debug "${RESPONSE}"
+	CHALLENGE_URIS[$i]="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\1/')"
+	CHALLENGE_TOKENS[$i]="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01", "status": "pending", "uri": "\([^"]*\)", "token": "\([^"]*\)".*$/\2/')"
+	KEYAUTHS[$i]="${CHALLENGE_TOKENS[$i]}.${JWK_THUMBPRINT}"
+	debug "${DOMAINS[$i]}     : challenge_uri=${CHALLENGE_URIS[$i]} keyauth=${KEYAUTHS[$i]}"
+done
+log "OK"
+
+
 
 log "Doing HTTP validation ..."
-
 if [ -n "${WEBROOT}" ];
 then
 	log "Copying challenge tokens to DocumentRoot ${WEBROOT} ..."
@@ -302,8 +307,10 @@ then
 	cd "${DOMAIN}"
 	rm -rf ".well-known"
 	mkdir -p ".well-known/acme-challenge"
-	echo "${KEYAUTH1}" > ".well-known/acme-challenge/${CHALLENGE_TOKEN1}"
-	echo "${KEYAUTH2}" > ".well-known/acme-challenge/${CHALLENGE_TOKEN2}"
+	for (( i=0; i < ${#DOMAINS[@]}; i++ ))
+	do
+		echo "${KEYAUTHS[$i]}" > ".well-known/acme-challenge/${CHALLENGE_TOKENS[$i]}"
+	done
 	rsync -axR ".well-known/" "${WEBROOT}"
 	)
 else
@@ -311,8 +318,10 @@ else
 	echo
 	echo
 	echo "mkdir -p .well-known/acme-challenge"
-	echo "echo '${KEYAUTH1}' > .well-known/acme-challenge/${CHALLENGE_TOKEN1}"
-	echo "echo '${KEYAUTH2}' > .well-known/acme-challenge/${CHALLENGE_TOKEN2}"
+	for (( i=0; i < ${#DOMAINS[@]}; i++ ))
+	do
+		echo "echo '${KEYAUTHS[$i]}' > .well-known/acme-challenge/${CHALLENGE_TOKENS[$i]}"
+	done
 	echo
 	echo
 	log "Press [Enter] when done."
@@ -320,13 +329,14 @@ else
 fi
 
 
+
 log "Responding to challenges ..."
-debug "${CHALLENGE_URI1}"
-REQUEST="{ \"resource\": \"challenge\", \"keyAuthorization\": \"${KEYAUTH1}\" }"
-api_request "${CHALLENGE_URI1}" "${REQUEST}" > /dev/null
-debug "${CHALLENGE_URI2}"
-REQUEST="{ \"resource\": \"challenge\", \"keyAuthorization\": \"${KEYAUTH2}\" }"
-api_request "${CHALLENGE_URI2}" "${REQUEST}" > /dev/null
+for (( i=0; i < ${#DOMAINS[@]}; i++ ))
+do
+	debug "${CHALLENGE_URIS[$i]}"
+	REQUEST="{ \"resource\": \"challenge\", \"keyAuthorization\": \"${KEYAUTHS[$i]}\" }"
+	api_request "${CHALLENGE_URIS[$i]}" "${REQUEST}" > /dev/null
+done
 log "OK"
 
 
@@ -339,7 +349,11 @@ log "Done"
 
 
 log "Creating CSR ..."
-export SUBJALTNAME="DNS:${DOMAIN},DNS:www.${DOMAIN}"
+export SUBJALTNAME="DNS:${DOMAINS[0]}"
+for (( i=1; i < ${#DOMAINS[@]}; i++ ))
+do
+	export SUBJALTNAME="${SUBJALTNAME},DNS:${DOMAINS[$i]}"
+done
 openssl req -new -sha256 -key "${DOMAIN}/${DOMAIN}.key" -subj "/CN=${DOMAIN}" -reqexts SAN -config "$(dirname "${0}")/openssl.conf" \
  > "${DOMAIN}/${DOMAIN}.csr"
 log "OK ${DOMAIN}/${DOMAIN}.csr"
@@ -361,9 +375,14 @@ then
 	log "Deleting challenge tokens in DocumentRoot ${WEBROOT} ..."
 	(
 	cd "${DOMAIN}" || exit
-	rm ".well-known/acme-challenge/${CHALLENGE_TOKEN1}"
-	rm ".well-known/acme-challenge/${CHALLENGE_TOKEN2}"
-	rsync -axR --delete --include ".well-known/acme-challenge/${CHALLENGE_TOKEN1}" --include ".well-known/acme-challenge/${CHALLENGE_TOKEN2}" --exclude '.well-known/acme-challenge/*' ".well-known/" "${WEBROOT}"
+	INCLUDES=()
+	for (( i=0; i < ${#DOMAINS[@]}; i++ ))
+	do
+		rm ".well-known/acme-challenge/${CHALLENGE_TOKENS[$i]}"
+		INCLUDES+=( --include )
+		INCLUDES+=( ".well-known/acme-challenge/${CHALLENGE_TOKENS[$i]}" )
+	done
+	rsync -axR --delete "${INCLUDES[@]}" --exclude '.well-known/acme-challenge/*' ".well-known/" "${WEBROOT}"
 	)
 else
 	log "You can do now in your DocumentRoot:"
