@@ -16,6 +16,9 @@ codequality:
 
 tests:
   stage: test
+  before_script:
+    - apk update
+    - apk add bash
   script:
     - cd test && bash -x ./test.sh
 
