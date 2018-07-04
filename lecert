@@ -136,7 +136,7 @@ api_request()
 	RESPONSE="$(echo "${CURLOUT}" | base64 -d | head -n -1)"
 	# just in case we get a 2xx status code but an error in response body (spec is not clear on that)
 	ACMEERRORCHECK="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "urn:acme:error.*$/ERROR/')"
-	if ([ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "201" ] || [ "${HTTP_CODE}" = "202" ]) && ([ "${ACMEERRORCHECK}" != "ERROR" ]);
+	if { [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "201" ] || [ "${HTTP_CODE}" = "202" ]; } && [ "${ACMEERRORCHECK}" != "ERROR" ];
 	then
 		debug "API request successful"
 	else
@@ -165,7 +165,7 @@ if [ ${#} -lt 1 ];
 then
 	error "Missing parameter"
 	usage
-	exit
+	exit 1
 fi
 
 while [ ${#} -gt 0 ];
@@ -211,7 +211,7 @@ if [ ${#DOMAINS[@]} -eq 0 ];
 then
 	error "Domain missing"
 	usage
-	exit
+	exit 1
 fi
 
 DOMAIN="${DOMAINS[0]}"
