@@ -9,6 +9,12 @@ before_script:
   - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
   - cp shellcheck-stable/shellcheck /usr/local/bin
 
+codequality:
+  stage: test
+  script:
+    - shellcheck lecert
+    - shellcheck tests/test.sh
+
 tests:
   stage: test
   script:
