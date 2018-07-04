@@ -1,7 +1,7 @@
 
-
 stages:
   - test
+  - package
 
 codequality:
   stage: test
@@ -21,4 +21,26 @@ tests:
     - yum install -y bash openssl curl vim-common
   script:
     - cd test && ./test.sh
+
+pack-snapshot:
+  stage: package
+  image: alpine:latest
+  script:
+    - tar cvf lecert-snapshot.tar lecert openssl.conf README.md CHANGELOG.md LICENSE.txt
+    - gzip lecert-snapshot.tar
+  artifacts:
+    - paths: [lecert-snapshot.tar.gz]
+  except:
+    - tags
+
+pack-release:
+  stage: package
+  image: alpine:latest
+  script:
+    - tar cvf lecert-$CI_COMMIT_TAG.tar lecert openssl.conf README.md CHANGELOG.md LICENSE.txt
+    - gzip lecert-$CI_COMMIT_TAG.tar
+  artifacts:
+    - paths: [lecert-$CI_COMMIT_TAG.tar.gz]
+  only:
+    - tags
 
