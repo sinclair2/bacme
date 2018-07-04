@@ -29,7 +29,8 @@ pack-snapshot:
     - tar cvf lecert-snapshot.tar lecert openssl.conf README.md CHANGELOG.md LICENSE.txt
     - gzip lecert-snapshot.tar
   artifacts:
-    - paths: [lecert-snapshot.tar.gz]
+    paths:
+      - lecert-snapshot.tar.gz
   except:
     - tags
 
@@ -40,7 +41,8 @@ pack-release:
     - tar cvf lecert-$CI_COMMIT_TAG.tar lecert openssl.conf README.md CHANGELOG.md LICENSE.txt
     - gzip lecert-$CI_COMMIT_TAG.tar
   artifacts:
-    - paths: [lecert-$CI_COMMIT_TAG.tar.gz]
+    paths:
+      - lecert-$CI_COMMIT_TAG.tar.gz
   only:
     - tags
 
