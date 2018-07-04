@@ -1,11 +1,11 @@
 
-image: alpine:latest
 
 stages:
   - test
 
 codequality:
   stage: test
+  image: alpine:latest
   before_script:
     - wget -nv https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
     - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
@@ -16,11 +16,7 @@ codequality:
 
 tests:
   stage: test
-  before_script:
-    - apk update
-    - apk add bash
-    - apk add openssl
-    - apk add curl
+  image: centos:latest
   script:
     - cd test && bash -x ./test.sh
 
