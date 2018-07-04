@@ -17,6 +17,8 @@ codequality:
 tests:
   stage: test
   image: centos:latest
+  before_script:
+    - yum install -y bash openssl curl
   script:
     - cd test && bash -x ./test.sh
 
