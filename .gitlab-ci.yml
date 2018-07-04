@@ -3,12 +3,12 @@ stages:
   - test
 
 before_script:
-  - wget https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
+  - wget -nv https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
   - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
   - cp shellcheck-stable/shellcheck /usr/local/bin
 
 shellcheck:
   stage: test
   script:
-    - shellcheck lecert
+    - cd test && ./test.sh
 
