@@ -20,5 +20,5 @@ tests:
   before_script:
     - yum install -y bash openssl curl vim-common
   script:
-    - cd test && bash -x ./test.sh
+    - cd test && ./test.sh
 
