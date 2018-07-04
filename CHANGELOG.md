@@ -1,6 +1,6 @@
 # ChangeLog
 
-## [Unreleased]
+## [0.3.0] 2018-07-04
 ### Added
 - option -w/--webroot for automating the copying of token files to the
   DocumentRoot, either locally or remote via rsync
