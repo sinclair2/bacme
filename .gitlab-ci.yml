@@ -2,14 +2,7 @@
 image: alpine:latest
 
 stages:
-  - build
   - test
-
-
-build:
-  stage: build
-  script:
-    - ls -laR
 
 codequality:
   stage: test
@@ -24,5 +17,5 @@ codequality:
 tests:
   stage: test
   script:
-    - cd test && ./test.sh
+    - cd test && bash -x ./test.sh
 
