@@ -18,7 +18,7 @@ tests:
   stage: test
   image: centos:latest
   before_script:
-    - yum install -y bash openssl curl xxd
+    - yum install -y bash openssl curl vim-common
   script:
     - cd test && bash -x ./test.sh
 
