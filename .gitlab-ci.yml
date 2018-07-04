@@ -1,4 +1,6 @@
 
+image: alpine:latest
+
 stages:
   - test
 
@@ -7,7 +9,7 @@ before_script:
   - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
   - cp shellcheck-stable/shellcheck /usr/local/bin
 
-shellcheck:
+tests:
   stage: test
   script:
     - cd test && ./test.sh

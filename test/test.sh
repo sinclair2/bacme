@@ -32,7 +32,7 @@ runtest "shellcheck test.sh" "shellcheck test.sh" "[ \$RET -eq 0 ]"
 
 runtest "lecert noparamcheck" "../lecert 2>&1" "[ \$RET -eq 1 ] && ( echo \"\$OUTPUT\" | grep \"ERROR: Missing parameter\" >/dev/null )"
 
-runtest "lecert testrun" "../lecert -t doesnotexist.example.com 2>&1 <<< \"\\n\"" "[ \$RET -eq 1 ] && ( echo \"\$OUTPUT\" | grep \"Error creating new cert :: authorizations for these names not found or expired: doesnotexist.example.com\" >/dev/null )"
+runtest "lecert testrun" "../lecert -v -t doesnotexist.example.com 2>&1 <<< \"\\n\"" "[ \$RET -eq 1 ] && ( echo \"\$OUTPUT\" | grep \"Error creating new cert :: authorizations for these names not found or expired: doesnotexist.example.com\" >/dev/null )"
 rm -rf doesnotexist.example.com
 
 
