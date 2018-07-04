@@ -19,6 +19,8 @@ tests:
   before_script:
     - apk update
     - apk add bash
+    - apk add openssl
+    - apk add curl
   script:
     - cd test && bash -x ./test.sh
 
