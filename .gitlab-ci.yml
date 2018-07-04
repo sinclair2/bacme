@@ -2,18 +2,24 @@
 image: alpine:latest
 
 stages:
+  - build
   - test
 
-before_script:
-  - wget -nv https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
-  - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
-  - cp shellcheck-stable/shellcheck /usr/local/bin
+
+build:
+  stage: build
+  script:
+    - ls -laR
 
 codequality:
   stage: test
+  before_script:
+    - wget -nv https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
+    - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
+    - cp shellcheck-stable/shellcheck /usr/local/bin
   script:
     - shellcheck lecert
-    - shellcheck tests/test.sh
+    - shellcheck test/test.sh
 
 tests:
   stage: test
