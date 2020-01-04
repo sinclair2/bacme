@@ -26,7 +26,7 @@ pack-snapshot:
   stage: package
   image: alpine:latest
   script:
-    - tar cvf lecert-snapshot.tar lecert openssl.conf README.md CHANGELOG.md LICENSE.txt
+    - tar cvf lecert-snapshot.tar lecert openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
     - gzip lecert-snapshot.tar
   artifacts:
     paths: [lecert-snapshot.tar.gz]
@@ -38,7 +38,7 @@ pack-release:
   stage: package
   image: alpine:latest
   script:
-    - tar cvf lecert-$CI_COMMIT_TAG.tar lecert openssl.conf README.md CHANGELOG.md LICENSE.txt
+    - tar cvf lecert-$CI_COMMIT_TAG.tar lecert openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
     - gzip lecert-$CI_COMMIT_TAG.tar
   artifacts:
     paths: [lecert-$CI_COMMIT_TAG.tar.gz]
