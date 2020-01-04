@@ -14,17 +14,10 @@
 #
 ##############################################################################
 
-# defaults
 
+# ACME API to use
 API="https://acme-v02.api.letsencrypt.org"
-CONTACT_EMAIL=""
-VERBOSE="false"
-DOMAINS=()
-WEBROOT=""
-
-# stop on error
-set -e
-trap on_exit EXIT
+API_STAGING="https://acme-staging-v02.api.letsencrypt.org"
 
 
 ##############################################################################
@@ -158,8 +151,17 @@ api_request()
 ##############################################################################
 
 
-# arg handling
+# stop on error
+set -e
+trap on_exit EXIT
 
+# defaults
+CONTACT_EMAIL=""
+VERBOSE="false"
+DOMAINS=()
+WEBROOT=""
+
+# arg handling
 if [ ${#} -lt 1 ];
 then
 	error "Missing parameter"
@@ -182,7 +184,7 @@ do
 		-t|--test)
 			# use staging API for testing
 			log "Using staging API"
-			API="https://acme-staging-v02.api.letsencrypt.org"
+			API="${API_STAGING}"
 			;;
 		-v|--verbose)
 			VERBOSE="true"
