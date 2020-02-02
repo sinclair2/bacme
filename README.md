@@ -1,5 +1,5 @@
-lecert
-======
+bacme
+=====
 
 Documentation
 -------------
@@ -40,7 +40,7 @@ Usage
 -----
 
 ```
-Usage: lecert [options...] <domain> [ <domain> ... ]
+Usage: bacme [options...] <domain> [ <domain> ... ]
 Options:
   -e, --email EMAIL         Your email if you want that Let's Encrypt can contact you
   -h, --help                This help
@@ -51,17 +51,11 @@ Options:
 
 The first domain parameter should be your main domain name with the subdomains following after it.
 
-Example: ./lecert -e me@example.com -w www@server:/var/www/example/ example.com www.example.com
+Example: ./bacme -e me@example.com -w www@server:/var/www/example/ example.com www.example.com
 
 ```
 
 See EXAMPLES.md for sample executions and their output.
-
-
-Known issues
-------------
-
-- Requires bash
 
 
 Useful links

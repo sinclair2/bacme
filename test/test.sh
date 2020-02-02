@@ -26,9 +26,9 @@ runtest()
 }
 
 
-runtest "lecert noparamcheck" "../lecert 2>&1" "[ \$RET -eq 1 ] && ( echo \"\$OUTPUT\" | grep \"ERROR: Missing parameter\" >/dev/null )"
+runtest "bacme noparamcheck" "../bacme 2>&1" "[ \$RET -eq 1 ] && ( echo \"\$OUTPUT\" | grep \"ERROR: Missing parameter\" >/dev/null )"
 
-runtest "lecert testrun" "../lecert -v -t doesnotexist.example.com 2>&1 <<< \"\\n\"" "[ \$RET -eq 1 ] && ( echo \"\$OUTPUT\" | grep \"urn:ietf:params:acme:error:orderNotReady\" >/dev/null )"
+runtest "bacme testrun" "../bacme -v -t doesnotexist.example.com 2>&1 <<< \"\\n\"" "[ \$RET -eq 1 ] && ( echo \"\$OUTPUT\" | grep \"urn:ietf:params:acme:error:orderNotReady\" >/dev/null )"
 rm -rf doesnotexist.example.com
 
 

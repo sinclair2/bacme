@@ -3,7 +3,7 @@
 ##############################################################################
 #
 #
-# lecert
+# bacme
 #
 # Keep it simple shell script for requesting a certificate from the Let's
 # Encrypt CA using the ACME protocol.
@@ -28,7 +28,7 @@ usage()
 {
 	cat << EOF
 
-Usage: lecert [options...] <domain> [ <domain> ... ]
+Usage: bacme [options...] <domain> [ <domain> ... ]
 Options:
   -e, --email EMAIL         Your email if you want that Let's Encrypt can contact you
   -h, --help                This help

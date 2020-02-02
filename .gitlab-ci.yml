@@ -11,7 +11,7 @@ codequality:
     - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
     - cp shellcheck-stable/shellcheck /usr/local/bin
   script:
-    - shellcheck lecert
+    - shellcheck bacme
     - shellcheck test/test.sh
 
 tests:
@@ -26,10 +26,10 @@ pack-snapshot:
   stage: package
   image: alpine:latest
   script:
-    - tar cvf lecert-snapshot.tar lecert openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
-    - gzip lecert-snapshot.tar
+    - tar cvf bacme-snapshot.tar bacme openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
+    - gzip bacme-snapshot.tar
   artifacts:
-    paths: [lecert-snapshot.tar.gz]
+    paths: [bacme-snapshot.tar.gz]
     expire_in: 30 days
   except:
     - tags
@@ -38,10 +38,10 @@ pack-release:
   stage: package
   image: alpine:latest
   script:
-    - tar cvf lecert-$CI_COMMIT_TAG.tar lecert openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
-    - gzip lecert-$CI_COMMIT_TAG.tar
+    - tar cvf bacme-$CI_COMMIT_TAG.tar bacme openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
+    - gzip bacme-$CI_COMMIT_TAG.tar
   artifacts:
-    paths: [lecert-$CI_COMMIT_TAG.tar.gz]
+    paths: [bacme-$CI_COMMIT_TAG.tar.gz]
   only:
     - tags
 

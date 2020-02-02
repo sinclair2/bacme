@@ -3,7 +3,7 @@ Execution with automatic copying of challenges to webroot
 ---------------------------------------------------------
 
 ```
-> ./lecert -w www@server:/var/www/example/ "example.com" "www.example.com"
+> ./bacme -w www@server:/var/www/example/ "example.com" "www.example.com"
 #### Creating domain subdirectory ...
 #### Done. example.com/ created.
 #### Getting URL of current subscriber agreement ...
@@ -54,7 +54,7 @@ Execution with manual copying of challenges to webroot
 ------------------------------------------------------
 
 ```
-> ./lecert example.com www.example.com
+> ./bacme example.com www.example.com
 #### Creating domain subdirectory ...
 #### Done. example.com/ created.
 #### Getting URL of current subscriber agreement ...
