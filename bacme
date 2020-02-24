@@ -108,7 +108,7 @@ api_request()
 
 	# get new nonce by HEAD to newNonce API
 	debug "Getting nonce ..."
-	NONCE="$(curl --silent --head "${API}/acme/new-nonce" | grep -i "^replay-nonce" | sed "s/replay-nonce: //i" | flatstring)"
+	NONCE="$(curl --silent --head "${API}/acme/new-nonce" | grep -i '^replay-nonce: ' | sed 's/^replay-nonce: //i' | flatstring)"
 	debug "nonce = $NONCE"
 
 	# JSON Web Signature
@@ -269,7 +269,7 @@ else
 	REQUEST="{ \"termsOfServiceAgreed\": true }"
 fi
 RESPONSE=$(api_request "${API}/acme/new-acct" "${REQUEST}")
-ACCOUNT_URL=$(echo "${RESPONSE}" | grep '^location:' | sed 's/^location: //' | flatstring)
+ACCOUNT_URL=$(echo "${RESPONSE}" | grep -i '^location: ' | sed 's/^location: //i' | flatstring)
 debug "Account URL: ${ACCOUNT_URL}"
 log "OK"
 

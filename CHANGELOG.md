@@ -1,5 +1,9 @@
 # ChangeLog
 
+## [Unreleased]
+### Changed
+- case-insensitive parsing of location HTTP header field (#4)
+
 ## [1.1.0] 2020-02-02
 ### Changed
 - renamed from _lecert_ to _bacme_ to avoid Let's Encrypt trademark issues
