@@ -294,6 +294,7 @@ do
 done
 REQUEST="${REQUEST} ] }"
 RESPONSE="$(api_request "${API}/acme/new-order" "${REQUEST}")"
+ORDER_URL=$(echo "${RESPONSE}" | grep -i '^location: ' | sed 's/^location: //i' | flatstring)
 IFS=" " read -r -a AUTHORIZATION_URLS <<< "$(echo "${RESPONSE}" | flatstring | sed 's/^.*"authorizations"\:\ \[\ \(.*\)\ \].*$/\1/' | tr -d ',"')"
 debug "authorization_urls=${AUTHORIZATION_URLS[*]}"
 if [ ${#DOMAINS[@]} -ne ${#AUTHORIZATION_URLS[@]} ];
@@ -367,9 +368,29 @@ log "OK"
 
 
 log "Waiting for validation ..."
-# just wait a bit until our validation files are checked by LE
-sleep 5
-log "Done"
+for attempt in 1 2 3 4 5
+do
+	sleep $((4*attempt))
+	RESPONSE="$(api_request "${ORDER_URL}" "")"
+	STATUS="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"status"\:\ "\([^"]*\)".*$/\1/')"
+	log " check ${attempt}: status=${STATUS}"
+	if [ "${STATUS}" != "pending" ];
+	then
+		break
+	fi
+done
+case "${STATUS}" in
+	ready)
+		log "Validation successful."
+		;;
+	invalid)
+		error "The server unsuccessfully validated your authorization challenge(s). Cannot continue."
+		exit 1
+		;;
+	*)
+		error "Timeout. Certificate order status is still \"${STATUS}\" instead of \"ready\". Something went wrong validating the authorization challenge(s). Cannot continue."
+		exit 1
+esac
 
 
 log "Creating CSR ..."
@@ -391,7 +412,7 @@ debug "status=${STATUS}"
 if [ "${STATUS}" != "valid" ];
 then
 	debug "${RESPONSE}"
-	error "Certificate order status is \"${STATUS}\" instead of \"valid\". Something went wrong with validation. Cannot continue."
+	error "Certificate order status is \"${STATUS}\" instead of \"valid\". Something went wrong issuing the certificate. Cannot continue."
 	exit 1
 fi
 CERTIFICATE_URL="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"certificate"\:\ "\([^"]*\)".*$/\1/')"

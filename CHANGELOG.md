@@ -3,10 +3,13 @@
 ## [Unreleased]
 ### Changed
 - case-insensitive parsing of location HTTP header field (#4)
+- wait in several attempts for challenge validation instead of hard-coded 5 seconds (#5)
+
 
 ## [1.1.0] 2020-02-02
 ### Changed
 - renamed from _lecert_ to _bacme_ to avoid Let's Encrypt trademark issues
+
 
 ## [1.0.0] 2020-01-04
 ### Changed
