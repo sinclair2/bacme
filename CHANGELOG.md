@@ -3,7 +3,13 @@
 ## [Unreleased]
 ### Changed
 - case-insensitive parsing of location HTTP header field (#4)
-- wait in several attempts for challenge validation instead of hard-coded 5 seconds (#5)
+- wait in several attempts for successful challenge validation instead of
+  hard-coded 5 seconds (#5)
+- store server and intermediate certificate together in one file (#6)
+  - using such chain files instead of configuring the intermediate separately
+    is the easier and I assume more common setup nowadays
+  - that way, when intermediate certificate changes you don't need to adapt
+    your configuration which makes Let's Encrypt integration easier
 
 
 ## [1.1.0] 2020-02-02

@@ -422,9 +422,9 @@ log "OK"
 
 log "Downloading certificate ..."
 RESPONSE="$(api_request "${CERTIFICATE_URL}" "")"
-# response contains HTTP headers and multiple certs, but openssl will parse nicely and only the first server cert
-echo "${RESPONSE}" | openssl x509 -inform PEM -outform PEM -out "${DOMAIN}/${DOMAIN}.crt"
-log "Success! Certificate saved: ${DOMAIN}/${DOMAIN}.crt"
+# Response contains the server and intermediate certificate(s). Store all in one chained file. They are in the right order already.
+echo "${RESPONSE}" | awk '/-----BEGIN CERTIFICATE-----/,0' > "${DOMAIN}/${DOMAIN}.crt"
+log "Success! Certificate with intermediates saved to: ${DOMAIN}/${DOMAIN}.crt"
 
 
 if [ -n "${WEBROOT}" ];
