@@ -291,7 +291,7 @@ REQUEST="{ \"identifiers\": ["
 for (( i=0; i < ${#DOMAINS[@]}; i++ ))
 do
 	REQUEST="${REQUEST} { \"type\": \"dns\", \"value\": \"${DOMAINS[$i]}\" }"
-	if [ "$i" -lt $((${#DOMAINS[@]}-1)) ]; then REQUEST="${REQUEST},"; fi
+	if [ $i -lt $((${#DOMAINS[@]}-1)) ]; then REQUEST="${REQUEST},"; fi
 done
 REQUEST="${REQUEST} ] }"
 RESPONSE="$(api_request "${API}/acme/new-order" "${REQUEST}")"
@@ -318,11 +318,11 @@ do
 	log " for ${DOMAINS[$i]}"
 	debug "  authorization_url=${AUTHORIZATION_URLS[$i]}"
 	RESPONSE="$(api_request "${AUTHORIZATION_URLS[$i]}" "")"
-	CHALLENGE_URLS[$i]="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01"[^{}]*"url": "\([^"]*\)".*$/\1/')"
+	CHALLENGE_URLS[i]="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01"[^{}]*"url": "\([^"]*\)".*$/\1/')"
 	debug "  challenge_url=${CHALLENGE_URLS[$i]}"
-	CHALLENGE_TOKENS[$i]="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01"[^{}]*"token": "\([^"]*\)".*$/\1/')"
+	CHALLENGE_TOKENS[i]="$(echo "${RESPONSE}" | flatstring | sed 's/^.*"type": "http-01"[^{}]*"token": "\([^"]*\)".*$/\1/')"
 	debug "  challenge_token=${CHALLENGE_TOKENS[$i]}"
-	KEYAUTHS[$i]="${CHALLENGE_TOKENS[$i]}.${JWK_THUMBPRINT}"
+	KEYAUTHS[i]="${CHALLENGE_TOKENS[$i]}.${JWK_THUMBPRINT}"
 	debug "  keyauth=${KEYAUTHS[$i]}"
 done
 log "OK"
