@@ -18,7 +18,7 @@ tests:
   stage: test
   image: opensuse/leap:latest
   before_script:
-    - zypper install -y bash openssl curl
+    - zypper install -y bash openssl curl vim
   script:
     - cd test && ./test.sh
 
