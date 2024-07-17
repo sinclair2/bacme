@@ -1,6 +1,6 @@
 # ChangeLog
 
-## [Unreleased]
+## [1.1.1] - 2024-07-17
 ### Changed
 - case-insensitive parsing of location HTTP header field (#4)
 - wait in several attempts for successful challenge validation instead of
@@ -14,6 +14,7 @@
   - Let's Encrypt may send emails to you about the client software accessing
     them. For example they informed about clients still using ACMEv1
     (not bacme). In such emails the user agent is mentioned.
+- fixed bug when retrieving the challenge URL and token
 
 
 ## [1.1.0] 2020-02-02
