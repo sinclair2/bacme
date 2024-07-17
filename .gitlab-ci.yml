@@ -7,7 +7,7 @@ codequality:
   stage: test
   image: alpine:latest
   before_script:
-    - wget -nv https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
+    - wget -nv https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz
     - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
     - cp shellcheck-stable/shellcheck /usr/local/bin
   script:

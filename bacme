@@ -291,7 +291,7 @@ REQUEST="{ \"identifiers\": ["
 for (( i=0; i < ${#DOMAINS[@]}; i++ ))
 do
 	REQUEST="${REQUEST} { \"type\": \"dns\", \"value\": \"${DOMAINS[$i]}\" }"
-	if [ $i -lt $((${#DOMAINS[@]}-1)) ]; then REQUEST="${REQUEST},"; fi
+	if [ "$i" -lt $((${#DOMAINS[@]}-1)) ]; then REQUEST="${REQUEST},"; fi
 done
 REQUEST="${REQUEST} ] }"
 RESPONSE="$(api_request "${API}/acme/new-order" "${REQUEST}")"
