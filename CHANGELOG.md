@@ -10,6 +10,10 @@
     is the easier and I assume more common setup nowadays
   - that way, when intermediate certificate changes you don't need to adapt
     your configuration which makes Let's Encrypt integration easier
+- use User-Agent header "bacme" for HTTP requests
+  - Let's Encrypt may send emails to you about the client software accessing
+    them. For example they informed about clients still using ACMEv1
+    (not bacme). In such emails the user agent is mentioned.
 
 
 ## [1.1.0] 2020-02-02

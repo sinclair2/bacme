@@ -2,15 +2,13 @@
 
 ##############################################################################
 #
-#
 # bacme
 #
-# Keep it simple shell script for requesting a certificate from the Let's
+# "Keep it simple" shell script for requesting a certificate from the Let's
 # Encrypt CA using the ACME protocol.
 #
 # Copyright (c) 2020 Stephan Uhlmann <su@su2.info>
 # Licensed under the GPL version 3, see LICENSE.txt
-#
 #
 ##############################################################################
 
@@ -19,6 +17,9 @@
 API="https://acme-v02.api.letsencrypt.org"
 API_STAGING="https://acme-staging-v02.api.letsencrypt.org"
 
+# BACME constants
+# User-Agent to use for API requests
+BACME_UA="bacme"
 
 ##############################################################################
 # functions
@@ -108,7 +109,7 @@ api_request()
 
 	# get new nonce by HEAD to newNonce API
 	debug "Getting nonce ..."
-	NONCE="$(curl --silent --head "${API}/acme/new-nonce" | grep -i '^replay-nonce: ' | sed 's/^replay-nonce: //i' | flatstring)"
+	NONCE="$(curl --silent --user-agent ${BACME_UA} --head "${API}/acme/new-nonce" | grep -i '^replay-nonce: ' | sed 's/^replay-nonce: //i' | flatstring)"
 	debug "nonce = $NONCE"
 
 	# JSON Web Signature
@@ -123,7 +124,7 @@ api_request()
 	debug "JWS Body: ${BODY}"
 	# base64 encoding/decoding necessary to stay binary safe.
 	# e.g. the new-cert operation responds with a der encoded certificate.
-	CURLOUT="$(curl --silent --include --show-error --write-out "\\n%{http_code}" -X POST -H "Content-Type: application/jose+json" -d "${JWS}" "${URL}" | base64 -w 0 )"
+	CURLOUT="$(curl --silent --user-agent ${BACME_UA} --include --show-error --write-out "\\n%{http_code}" -X POST -H "Content-Type: application/jose+json" -d "${JWS}" "${URL}" | base64 -w 0 )"
 	HTTP_CODE="$(echo "${CURLOUT}" | base64 -d | tail -n 1)"
 	RESPONSE="$(echo "${CURLOUT}" | base64 -d | head -n -1)"
 	# just in case we get a 2xx status code but an error in response body (spec is not clear on that)
@@ -223,7 +224,7 @@ log "Done. ${DOMAIN}/ created."
 
 
 log "Getting URL of current subscriber agreement ..."
-AGREEMENT="$(curl --silent ${API}/directory | grep '"termsOfService":' | sed 's/^.*"termsOfService": "\([^"]*\)".*$/\1/' | flatstring)"
+AGREEMENT="$(curl --silent --user-agent ${BACME_UA} ${API}/directory | grep '"termsOfService":' | sed 's/^.*"termsOfService": "\([^"]*\)".*$/\1/' | flatstring)"
 log "OK ${AGREEMENT}"
 
 

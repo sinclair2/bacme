@@ -12,7 +12,7 @@ Simplifications for example are:
 - supports ACMEv2 (RFC 8555) only, not the deprecated ACMEv1
 - supports http validation only
 - keys are not reused but regenerated every time
-  - both the account key and the domain key
+  - both the account and the domain key
   - in part this is also because of privacy considerations
 
 The script is intentionally made so by default it will not do anything on your
@@ -20,7 +20,7 @@ server by itself. There is no need that you have to run it directly on your
 server (as root or otherwise). You keep control over the validation and
 installation process.
 A typical automated renewal process would be to let the script generate new
-private keys, automate the http validation by using a SSH key authenticated
+private keys, automate the http validation by using an SSH-key-authenticated
 rsync with the --webroot option and installing the generated keys and
 certificates via e.g. an Ansible playbook.
 
@@ -33,7 +33,7 @@ Let's Encrypt Subscriber Agreement
 ----------------------------------
 
 By using this script you accept the Let's Encrypt Subscriber Agreement.
-The latest version can be found at https://letsencrypt.org/repository/
+The latest version can be found at https://letsencrypt.org/repository/.
 
 
 Usage
