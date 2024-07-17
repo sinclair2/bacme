@@ -16,9 +16,9 @@ codequality:
 
 tests:
   stage: test
-  image: centos:latest
+  image: opensuse/leap:latest
   before_script:
-    - yum install -y bash openssl curl vim-common
+    - zypper install -y bash openssl curl
   script:
     - cd test && ./test.sh
 
